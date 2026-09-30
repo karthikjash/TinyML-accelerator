@@ -119,23 +119,6 @@ tinyml-mcxn236/
 ### Application Case Study
 - Beyond synthetic benchmarks, the framework will be validated using an **embedded sensor-based application/case study** to demonstrate real-time performance in a practical operating scenario.
 
-BENCHMARKS FOR EVALUATION.
-
-Target Hardware: NXP FRDM-MCXN236 (Arm Cortex-M33 @ 150 MHz)
-Optimization Flags: -O3 -mcpu=cortex-m33
-
-Model: 1D-CNN (Keyword Spotting / Sensor Signal)
-========================================================================================
-Metric                   Naive C        CMSIS-NN Baseline   Your Framework   Improvement vs CMSIS
-----------------------------------------------------------------------------------------
-Inference Cycles         X,XXX,XXX      YYY,YYY             ZZZ,ZZZ          +XX.X% Speedup
-Latency (ms)             XX.X ms        Y.YY ms             Z.ZZ ms          -XX.X% Latency
-Peak RAM (KB)            XX.X KB        YY.Y KB             ZZ.Z KB          -XX.X% RAM
-Flash Footprint (KB)     XX.X KB        YY.Y KB             ZZ.Z KB          -XX.X% Code Size
-Top-1 Accuracy (%)       94.2%          94.1%               94.1%            0.0% Loss
-========================================================================================
-
----
 
 ## Expected Benchmarking Results
 
