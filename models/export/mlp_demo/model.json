@@ -1,0 +1,113 @@
+{
+  "format_version": "0.1",
+  "model_name": "mlp_demo",
+  "quant_spec": "CONTRACT_1 v0.1",
+  "input": {
+    "shape": [
+      1,
+      384
+    ],
+    "scale": 0.021339727850521312,
+    "zero_point": 4
+  },
+  "output": {
+    "shape": [
+      1,
+      4
+    ],
+    "scale": 0.00392156862745098,
+    "zero_point": -128
+  },
+  "layers": [
+    {
+      "name": "fc1",
+      "type": "fc",
+      "weight": "fc1_w",
+      "bias": "fc1_b",
+      "weight_shape": [
+        384,
+        128
+      ],
+      "in_shape": [
+        1,
+        384
+      ],
+      "out_shape": [
+        1,
+        128
+      ],
+      "scale_in": 0.021339727850521312,
+      "scale_w": 0.0005363999741283928,
+      "scale_out": 0.03264183343625536,
+      "zp_in": 4,
+      "zp_out": -128,
+      "activation": "relu"
+    },
+    {
+      "name": "fc2",
+      "type": "fc",
+      "weight": "fc2_w",
+      "bias": "fc2_b",
+      "weight_shape": [
+        128,
+        64
+      ],
+      "in_shape": [
+        1,
+        128
+      ],
+      "out_shape": [
+        1,
+        64
+      ],
+      "scale_in": 0.03264183343625536,
+      "scale_w": 0.0008329158927511981,
+      "scale_out": 0.033582085254145605,
+      "zp_in": -128,
+      "zp_out": -128,
+      "activation": "relu"
+    },
+    {
+      "name": "fc3",
+      "type": "fc",
+      "weight": "fc3_w",
+      "bias": "fc3_b",
+      "weight_shape": [
+        64,
+        4
+      ],
+      "in_shape": [
+        1,
+        64
+      ],
+      "out_shape": [
+        1,
+        4
+      ],
+      "scale_in": 0.033582085254145605,
+      "scale_w": 0.0010835644532376388,
+      "scale_out": 0.04572779711555032,
+      "zp_in": -128,
+      "zp_out": -34,
+      "activation": "none"
+    },
+    {
+      "name": "sm",
+      "type": "softmax",
+      "in_shape": [
+        1,
+        4
+      ],
+      "out_shape": [
+        1,
+        4
+      ],
+      "scale_in": 0.04572779711555032,
+      "zp_in": -34,
+      "scale_out": 0.00392156862745098,
+      "zp_out": -128,
+      "lut_ref": "sm_lut"
+    }
+  ],
+  "arena_size_bytes": 192
+}

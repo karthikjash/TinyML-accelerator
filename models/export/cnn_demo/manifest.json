@@ -1,0 +1,14 @@
+{
+  "format_version": "0.1",
+  "model_name": "cnn_demo",
+  "generator": "tools/export_model.py v0.1",
+  "num_layers": 7,
+  "arena_size_bytes": 3072,
+  "sha256": {
+    "model.json": "18a2035292ef2eac35b7b3a7ed163d07b1c227512bc2d454bd01b23f211fa4bf",
+    "model_data.h": "fbefa0850662857ec2bd118fd0827f1492815b9a25ff985fa482b29487aab22d",
+    "model_data.c": "c07fcce03208604d0f803701f343215a7a4ee59b910b0981bf21872b5d3b9ffb",
+    "vectors.h": "c7797386d63ae19865db72f61329fa33dd0a99c0e65d98644606ef456239c43e",
+    "vectors.c": "f2cf2484fa37ee7ddecf1a26d5ed5f2b290a92058e2fa894ce4072ae0988d0f2"
+  }
+}

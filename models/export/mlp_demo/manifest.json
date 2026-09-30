@@ -1,0 +1,14 @@
+{
+  "format_version": "0.1",
+  "model_name": "mlp_demo",
+  "generator": "tools/export_model.py v0.1",
+  "num_layers": 4,
+  "arena_size_bytes": 192,
+  "sha256": {
+    "model.json": "861832bdb3e1ce894bbf7796628422ecd41aeb4b1fd81e999833dd724ca261de",
+    "model_data.h": "bd97b693089fc7fb3e6c7c99d40fe4bf302b7521d832de0851aaa204f1f209d8",
+    "model_data.c": "b06f67a165391d3946dcb226ad38c51f8125a435b6cf79f65f065d2e90ba69ab",
+    "vectors.h": "6a16804d8b53ca250ce85696e0711a8733cbbc61c5ecf57a074fe69b575d7604",
+    "vectors.c": "8d2cd46daf998e768335178cdf73aebdafbf7dbd3c86241986d258f81e1b737b"
+  }
+}

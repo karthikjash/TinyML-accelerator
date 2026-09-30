@@ -1,0 +1,12 @@
+{
+  "mlp_demo": {
+    "quant_acc": 1.0,
+    "fp32_acc": 1.0,
+    "drop_pct": 0.0
+  },
+  "cnn_demo": {
+    "quant_acc": 1.0,
+    "fp32_acc": 1.0,
+    "drop_pct": 0.0
+  }
+}

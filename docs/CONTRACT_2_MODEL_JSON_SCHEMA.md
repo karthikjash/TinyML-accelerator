@@ -60,7 +60,7 @@
 | `format_version` | must equal `"0.1"`; C dispatcher rejects anything else |
 | `layers[].activation` | `"relu"`, `"none"` (fc/conv1d only) — activation is fused into the fc/conv call, NOT a separate layer entry |
 | `weight` / `bias` / `lut_ref` | symbol names that MUST exist in `model_data.h` (see Contract 3 export) |
-| `weight_shape` | fc: `[in_features, out_features]` (PyTorch linear weight transposed at export); conv1d: `[in_ch, out_ch, kernel]` |
+| `weight_shape` | fc: `[in_features, out_features]` (PyTorch linear weight transposed at export; **after a flatten following conv1d, FC weight rows are pre-permuted at export so runtime flatten stays row-major over [T,C] buffers** — v0.1.1); conv1d: `[in_ch, out_ch, kernel]` |
 | scales | float64 JSON numbers; zero_points int |
 | `arena_size_bytes` | = sum of the two largest consecutive intermediate buffers (double-buffer scheme, v0.1); exporter computes and asserts it |
 | `in_shape`/`out_shape` | batch dim is always element 0 and MUST be 1 on device (single-inference benchmarking); exporters may emit batch > 1 for host tests only |

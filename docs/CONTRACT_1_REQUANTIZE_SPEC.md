@@ -1,5 +1,8 @@
-# CONTRACT 1 — INT8 Quantization & Requantize Spec (v0.1, FROZEN 2026-09-30)
+# CONTRACT 1 — INT8 Quantization & Requantize Spec (v0.1.1, FROZEN 2026-09-30)
 
+> v0.1.1 change (2026-09-30, found by simulator debugging): §2 now REQUIRES the
+> activation zero-point subtraction inside the MAC (see §2 note).
+>
 > This document is **normative**. The Python simulator (`tools/simulate.py`, Day 2)
 > and every C kernel (`firmware/src/kernels/`, Day 2–3) must implement exactly the
 > arithmetic defined here. A kernel that deviates is **wrong**, even if its accuracy
@@ -22,13 +25,19 @@ Per-tensor scales (one scale/zero-point per whole tensor). No per-channel scales
 For one output element:
 
 ```text
-acc_i32 = sum_over_k( w_q[k] * x_q[k] )        // int64 math, then keep as int32
-acc_i32 = acc_i32 + b_q                         // b_q already carries bias scale
+acc_i64 = sum_over_k( w_q[k] * (x_q[k] - zp_in) )   // int64 math; ZERO-POINT SUBTRACTED
+acc_i32 = acc_i64 + b_q                              // b_q already carries bias scale
 out_real = (double)acc_i32 * requant_scale
-out_q   = rint_half_to_even(out_real)           // round-half-to-even
+out_q   = rint_half_to_even(out_real)                // round-half-to-even
 out_q   = out_q + zp_out
-out_q   = saturate_int8(out_q)                  // clip to [-128, 127]
+out_q   = saturate_int8(out_q)                       // clip to [-128, 127]
 ```
+
+**The zero-point subtraction is mandatory** (v0.1.1). With asymmetric activations,
+`q_x = x/scale + zp_in`; the MAC must operate on the true value `q_x - zp_in`.
+Equivalent formulation (fold into bias, chosen for the C kernels):
+`b_q_eff = b_q - zp_in * sum_k(w_q[k])`, precomputed at export time.
+Conv1d padding uses `zp_in`, which then contributes exactly 0 to every MAC.
 
 **Rounding rule: round-half-to-even** (IEEE default; Python `np.rint`, C `rint()` under
 default FP mode). Both sides MUST be compiled/run with default rounding mode.
