@@ -1,0 +1,22 @@
+{
+  "mlp_demo": {
+    "val_acc": 1.0,
+    "test_acc": 1.0,
+    "params": 57796
+  },
+  "cnn_demo": {
+    "val_acc": 1.0,
+    "test_acc": 1.0,
+    "params": 5924
+  },
+  "dataset": {
+    "n_samples": 1600,
+    "seq_len": 128,
+    "n_classes": 4,
+    "split": {
+      "train": 1120,
+      "val": 240,
+      "test": 240
+    }
+  }
+}

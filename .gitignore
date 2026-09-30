@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# C / CMake builds
+build/
+firmware/build*/
+cmake-build-*/
+*.o
+*.elf
+*.bin
+*.map
+
+# ESP-IDF
+sdkconfig.old
+managed_components/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Freebuff local state
+.freebuff/
