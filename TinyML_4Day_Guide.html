@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TinyML Framework - 4-Day Build Guide</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a2332; font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  .page { page-break-after: always; padding: 2mm 4mm 6mm 4mm; }
+  .page.last { page-break-after: auto; }
+  h1 { font-size: 20pt; color: #0f4c81; margin: 0 0 2mm 0; }
+  h2 { font-size: 13pt; color: #0f4c81; border-bottom: 2px solid #0f4c81; padding-bottom: 1.5mm; margin: 6mm 0 3mm 0; }
+  h3 { font-size: 11.5pt; color: #12324f; margin: 4mm 0 1.5mm 0; }
+  p, li { margin: 1.5mm 0; }
+  ul { margin: 1mm 0 2mm 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 2mm 0; }
+  th { background: #0f4c81; color: #ffffff; padding: 2mm 2.5mm; text-align: left; }
+  td { border: 0.4pt solid #c4cdd9; padding: 1.8mm 2.5mm; vertical-align: top; }
+  tr.alt td { background: #f2f6fb; }
+  code { font-family: Consolas, 'Courier New', monospace; font-size: 9pt; background: #eef2f7; padding: 0.3mm 1.2mm; color: #0f4c81; }
+  pre { background: #0f4c81; color: #eaf2fa; padding: 3mm 4mm; font-size: 8.5pt; line-height: 1.45; white-space: pre-wrap; margin: 2mm 0; }
+  pre code { background: none; color: inherit; padding: 0; }
+  .step-badge { background: #0f4c81; color: #ffffff; font-weight: bold; font-size: 9pt; padding: 0.8mm 3mm; margin-right: 2mm; }
+  .step-title { font-size: 12pt; font-weight: bold; color: #0f4c81; }
+  .gate { background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 2.5mm 3.5mm; margin: 3mm 0; }
+  .gate b { color: #2e7d32; }
+  .fail { background: #fff3e0; border-left: 4px solid #e65100; padding: 2.5mm 3.5mm; margin: 3mm 0; font-size: 9.5pt; }
+  .fail b { color: #e65100; }
+  .tip { background: #e8eaf6; border-left: 4px solid #283593; padding: 2.5mm 3.5mm; margin: 3mm 0; font-size: 9.pt; }
+  .tip b { color: #283593; }
+  .pipeline { background: #f2f6fb; border: 0.5pt solid #c4cdd9; padding: 3mm 4mm; font-size: 8.5pt; font-family: Consolas, monospace; white-space: pre-wrap; }
+  .small { font-size: 9pt; color: #55606e; }
+  .covermeta { margin-top: 10mm; font-size: 10.5pt; color: #44526a; line-height: 1.9; }
+  .badge { background: #0f4c81; color: #ffffff; padding: 1.5mm 5mm; font-size: 10pt; font-weight: bold; width: 60mm; text-align: center; margin-bottom: 6mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1: COVER + HOW TO USE ============ -->
+<div class="page">
+  <div style="margin-top:28mm;">&nbsp;</div>
+  <div class="badge">4-DAY SPRINT &middot; ESP32</div>
+  <h1>Configurable TinyML Framework<br>4-Day Build Guide</h1>
+  <p style="font-size:12pt; color:#44526a;">What to build, in what order, and how to test each stage</p>
+  <div class="covermeta">
+    <b>Start:</b> Wednesday, September 30, 2026<br>
+    <b>Finish:</b> end of Day 4 &mdash; Sunday, October 4, 2026<br>
+    <b>Hardware for this sprint:</b> ESP32 dev board + USB cable<br>
+    <b>Later (not in these 4 days):</b> port to NXP FRDM-MCXN236 (Cortex-M33)
+  </div>
+
+  <h2 style="margin-top:16mm;">How to use this guide</h2>
+  <p>The project is a <b>pipeline</b>. Each stage below has three parts: <b>what to build</b>, <b>how to test it</b>, and a <b>Go/No-Go gate</b>. Do not start a stage until the previous stage's gate has passed. If a gate fails, check the "If it fails" box and the Debugging Map (last page) before moving on.</p>
+  <div class="pipeline">DATASET &#8595; TRAIN (FP32) &#8595; QUANTIZE (INT8 + bit-exact simulator)
+   &#8595; EXPORT (model.json + model_data.c/.h + golden vectors)
+   &#8595; BUILD C RUNTIME (static buffers + dispatcher + kernels)
+   &#8595; RUN ON ESP32 &#8595; VERIFY BIT-EXACT vs golden vectors
+   &#8595; BENCHMARK &#8595; RESULTS TABLE + DEMO</div>
+  <p class="small"><b>The one rule above all: verify bit-exactness at every layer.</b> Every stage's output must match a trusted reference before it feeds the next stage. This is what makes a 4-day build possible &mdash; you never debug two unknowns at once.</p>
+</div>
+
+<!-- ============ PAGE 2: STAGE 0 ============ -->
+<div class="page">
+  <span class="step-badge">STAGE 0</span><span class="step-title">Day 1 Morning &mdash; Setup &amp; Contracts (2&ndash;3 h)</span>
+  <p>Everything downstream depends on agreeing data formats <i>before</i> writing kernels or runtime code. Do this first.</p>
+
+  <h3>0.1 &mdash; Install and verify the toolchains</h3>
+  <table>
+    <tr><th style="width:30%;">Tool</th><th style="width:34%;">What it is for</th><th>Verify it works</th></tr>
+    <tr><td><b>Python 3.10+</b> with NumPy, PyTorch (CPU is fine)</td><td>Training, quantization, simulator, exporters</td><td><code>python -c "import torch, numpy; print(torch.__version__)"</code> prints a version</td></tr>
+    <tr class="alt"><td><b>ESP-IDF v5.x</b></td><td>ESP32 compiler + build system + flash/monitor</td><td><code>idf.py --version</code> works; build and flash the <code>hello_world</code> example, see output in <code>idf.py monitor</code></td></tr>
+    <tr><td><b>CMake 3.16+ and a host C compiler</b></td><td>Fast host build for kernel tests</td><td><code>cmake --version</code> and <code>gcc --version</code> (or <code>clang</code>) print versions</td></tr>
+    <tr class="alt"><td><b>Git + a GitHub repo</b></td><td>Version control; push at every gate</td><td>You can push a commit from the project folder</td></tr>
+  </table>
+  <div class="fail"><b>If it fails:</b> the most common Day-1 blocker is ESP-IDF. If <code>hello_world</code> will not build/flash after ~2 h of effort, continue with the host build (Stage 4 works on host too) and fix ESP-IDF in parallel. Do not burn the day on it.</div>
+
+  <h3>0.2 &mdash; Create the repository structure</h3>
+  <pre><code>tinyml-mcxn236/
+&#9500;&#9472;&#9472; tools/             # Python: train, quantize, exporter, simulator, golden-vector generator
+&#9500;&#9472;&#9472; firmware/
+&#9474;   &#9492;&#9472;&#9472; src/
+&#9474;       &#9500;&#9472;&#9472; runtime/    # dispatcher (walks the model, calls kernels in order)
+&#9474;       &#9500;&#9472;&#9472; kernels/    # fc_int8, conv1d_int8, relu, softmax, requantize
+&#9474;       &#9500;&#9472;&#9472; memory/     # static arena (no malloc)
+&#9474;       &#9500;&#9472;&#9472; platform/   # HAL: cycle counter, timer, print  (esp32 + host backends)
+&#9474;       &#9492;&#9472;&#9472; benchmark/  # timing harness
+&#9500;&#9472;&#9472; models/           # exported model.json, model_data.c/.h, golden vectors
+&#9500;&#9472;&#9472; tests/            # host + on-target golden-vector tests
+&#9492;&#9472;&#9472; docs/             # the three contract documents live here</code></pre>
+
+  <h3>0.3 &mdash; Freeze the three contracts (write them in docs/, commit them)</h3>
+  <table>
+    <tr><th style="width:28%;">Contract</th><th>Must define</th></tr>
+    <tr><td><b>1. Requantize spec</b></td><td>INT8 weights + activations, <b>int32 accumulators</b>; requantize by fixed-point multiplier + shift; <b>round-half-to-even</b>; saturate to [&minus;128, +127]; per-tensor scales; symmetric weights (zp = 0), asymmetric activations; the exact softmax algorithm (exp LUT or shift-based) &mdash; decide now, C will copy it exactly.</td></tr>
+    <tr class="alt"><td><b>2. model.json schema</b></td><td>Ordered layer list: type (fc / conv1d / relu / softmax / flatten), input + output shapes, weight/bias tensor IDs into model_data.c, quant scales and zero-points per tensor, pad/stride/kernel-size for conv1d, total arena size.</td></tr>
+    <tr><td><b>3. Golden-vector format</b></td><td>JSON: one file per layer + one per full model. Fields: input (int8 array), expected output (int8 array), scales, zero-points, tolerance (0 = bit-exact). Generated by the Python simulator, consumed by C tests on host and ESP32.</td></tr>
+  </table>
+
+  <div class="gate"><b>GATE 0 &mdash; end of Day 1 morning:</b> hello_world builds and flashes on the ESP32 &middot; host CMake builds a hello test &middot; the three contract docs are committed &middot; repo pushed. Only now start Stage 1.</div>
+</div>
+
+<!-- ============ PAGE 3: STAGE 1 + 2 ============ -->
+<div class="page">
+  <span class="step-badge">STAGE 1</span><span class="step-title">Day 1 &mdash; Train the Models (FP32)</span>
+  <p>Two small models. <b>Do not chase high accuracy</b> &mdash; the sprint proves the framework, not the model. Keep training under ~30 min per model.</p>
+
+  <h3>1.1 &mdash; Pick the dataset (decide today)</h3>
+  <table>
+    <tr><th style="width:30%;">Option</th><th style="width:22%;">Feeds</th><th>Notes</th></tr>
+    <tr><td><b>A. Synthetic sensor/gesture data (recommended)</b></td><td>MLP + 1D-CNN</td><td>NumPy-generated signals (e.g. sine / square / noise classes, or 3-axis synthetic gestures). Zero download time, fully controlled, easy class separation &rarr; accuracy ~99%.</td></tr>
+    <tr class="alt"><td><b>B. Google Speech Commands subset</b> (yes/no/up/down)</td><td>1D-CNN</td><td>Real keyword-spotting case study; download + preprocessing costs time. Use only if you already have it locally.</td></tr>
+    <tr><td><b>C. UCI HAR smartphone dataset</b></td><td>1D-CNN</td><td>Real sensor data, small download, moderate difficulty.</td></tr>
+  </table>
+
+  <h3>1.2 &mdash; Train (small on purpose)</h3>
+  <table>
+    <tr><th style="width:18%;">Model</th><th>Architecture</th><th style="width:18%;">INT8 size (approx)</th></tr>
+    <tr><td><b>MLP</b></td><td>Flatten &rarr; FC 128 &rarr; ReLU &rarr; FC 64 &rarr; ReLU &rarr; FC n_classes</td><td>~15 KB</td></tr>
+    <tr class="alt"><td><b>1D-CNN</b></td><td>Conv1D(16, k=5) &rarr; ReLU &rarr; MaxPool &rarr; Conv1D(32, k=3) &rarr; ReLU &rarr; MaxPool &rarr; Flatten &rarr; FC n_classes</td><td>~25 KB</td></tr>
+  </table>
+  <p>Adam, cross-entropy, 10&ndash;20 epochs. Save the <b>train/val/test split to disk</b> &mdash; the same split must be reused later for the quantized-accuracy test (never re-split). Also save normalization constants (mean/std per feature): the C side must apply <i>the same</i> normalization as training.</p>
+
+  <div class="gate"><b>GATE 1 &mdash; end of Day 1:</b> both models trained &middot; test accuracy printed (expect &ge; 95% synthetic, &ge; 85% real data) &tdot; FP32 weights + normalization constants saved &middot; one command retrains both from scratch.</div>
+  <div class="fail"><b>If it fails:</b> low accuracy &rarr; check normalization and class balance; still low &rarr; make the dataset easier. Sprint scope beats model quality.</div>
+
+  <span class="step-badge">STAGE 2</span><span class="step-title">Day 2 Morning &mdash; Quantize (INT8) + Bit-Exact Simulator</span>
+  <p>This is the heart of the project. The NumPy simulator you build here becomes the <b>golden reference that every C kernel is tested against</b>.</p>
+
+  <h3>2.1 &mdash; Post-training quantization (PTQ)</h3>
+  <table>
+    <tr><th style="width:34%;">Step</th><th>What to do</th></tr>
+    <tr><td>1. Collect activation ranges</td><td>Run ~200 calibration samples through the FP32 model; record per-tensor min/max of every layer output (or use fixed ranges for ReLU nets).</td></tr>
+    <tr class="alt"><td>2. Compute quant parameters</td><td><code>scale = (max - min) / 255</code>; <code>zero_point = round(-min / scale) - 128</code> (int8). Weights: symmetric, zp = 0.</td></tr>
+    <tr><td>3. Quantize weights</td><td><code>q = clip(round(w / scale_w) + zp_w, -128, 127)</code>. Store biases as int32: <code>b_q = round(b / (scale_in * scale_w))</code>.</td></tr>
+  </table>
+
+  <h3>2.2 &mdash; Build the NumPy bit-exact simulator</h3>
+  <p>It must replicate <i>exactly</i> what C will do &mdash; same operation order, same rounding:</p>
+  <ul>
+    <li>int8 weights (symmetric), int8 activations; MACs in int64, accumulator kept as int32</li>
+    <li>requantize: fixed-point multiplier + shift, <b>round-half-to-even</b>, saturate [&minus;128, +127]</li>
+    <li>ReLU in the int8 domain (clip 0..127 after requantize)</li>
+    <li>softmax: fixed-point exp per the spec (LUT or shift-based), int8 in &rarr; int8 out &mdash; write the exact algorithm in the spec doc now</li>
+  </ul>
+
+  <h3>2.3 &mdash; Quantized-accuracy check</h3>
+  <p>Run the full test set through the simulator &rarr; quantized accuracy. Expect at most a 1&ndash;2% drop from FP32.</p>
+
+  <div class="gate"><b>GATE 2 &mdash; end of Day 2 morning:</b> simulator is deterministic (same inputs &rarr; identical outputs on re-run) &middot; quantized accuracy within ~2% of FP32 &middot; requantize spec updated with final multiplier/shift/rounding. <b>Everything from here on is tested against THIS simulator.</b></div>
+  <div class="fail"><b>If it fails:</b> accuracy drop &gt; 2% &rarr; widen the calibration set, use 99.9th-percentile clipping, and re-check zero-point arithmetic (off-by-one zero-point is the #1 PTQ bug).</div>
+</div>
+
+<!-- ============ PAGE 4: STAGE 3 + 4 ============ -->
+<div class="page">
+  <span class="step-badge">STAGE 3</span><span class="step-title">Day 2 &mdash; Export Model + Golden Vectors</span>
+  <p>Generate everything the C side consumes. <b>No C code may hardcode a shape or a scale</b> &mdash; everything comes from these artifacts.</p>
+
+  <h3>3.1 &mdash; Export artifacts</h3>
+  <table>
+    <tr><th style="width:34%;">Artifact</th><th>Contains</th><th style="width:20%;">Consumed by</th></tr>
+    <tr><td><code>models/&lt;model&gt;/model.json</code></td><td>Layer graph, shapes, kernel sizes, quant scales/zps, per-layer buffer sizes, total arena size</td><td>C dispatcher (compiled in via a generated header)</td></tr>
+    <tr class="alt"><td><code>models/&lt;model&gt;/model_data.c/.h</code></td><td>INT8 weights, int32 biases, all scales/zps as C arrays &mdash; <code>const</code>, flash-resident</td><td>linked into firmware</td></tr>
+    <tr><td><code>tests/golden/&lt;model&gt;/</code></td><td>Per-layer + full-model vectors (int8 arrays + scales + expected int8 outputs, tolerance 0)</td><td>host tests + ESP32 tests</td></tr>
+  </table>
+  <p class="small">Tip: store weights row-major (C order) and state it in a header comment &mdash; C and NumPy must read the same memory layout. Generate a <code>model_config.h</code> with the arena size as a #define.</p>
+
+  <h3>3.2 &mdash; How to test the exporter (round-trip test)</h3>
+  <p>Parse the generated <code>model_data.c</code> back in Python, run the simulator on the re-imported weights, and confirm outputs are identical to the original run. This catches layout/precision errors before any C runs.</p>
+
+  <div class="gate"><b>GATE 3 &mdash; end of Day 2 afternoon:</b> round-trip test passes &middot; model_data.c compiles standalone on the host &middot; golden vectors exist for every layer of both models.</div>
+
+  <span class="step-badge">STAGE 4</span><span class="step-title">Day 2&ndash;3 &mdash; Build the C Runtime + Kernels</span>
+  <p>Order matters: <b>host first, ESP32 second</b> &mdash; the same kernel code is tested on host (fast, easy debugging), then run on target. Test each kernel in isolation against golden vectors <i>before</i> wiring the dispatcher.</p>
+
+  <h3>4.1 &mdash; Build order (each row = one commit + one test)</h3>
+  <table>
+    <tr><th style="width:5%;">#</th><th style="width:36%;">Component</th><th>How to test it</th></tr>
+    <tr><td>1</td><td>Static arena + buffer manager (fixed regions, no malloc)</td><td>Unit test: allocate/free patterns; assert no overlap; assert total size matches arena size from model.json</td></tr>
+    <tr class="alt"><td>2</td><td>Platform HAL (cycle counter, timer, print)</td><td>Host: prints fake cycles. ESP32: <code>esp_cpu_get_cycle_count()</code> delta around a busy loop; cycles &asymp; 240 MHz &times; measured wall time</td></tr>
+    <tr><td>3</td><td><code>requantize_int32_to_int8</code> helper</td><td>Golden vectors from the simulator: exact bit-match on ~1000 random int32 values across the scale range</td></tr>
+    <tr class="alt"><td>4</td><td><code>fc_int8</code> (fully-connected / GEMM)</td><td>Per-layer golden vectors: bit-exact. Test both single-sample (N=1) and batched input</td></tr>
+    <tr><td>5</td><td>ReLU + fixed-point softmax (exact spec algorithm)</td><td>Golden vectors bit-exact; softmax outputs sum to ~255 within quantization resolution</td></tr>
+    <tr class="alt"><td>6</td><td><code>conv1d_int8</code> (with padding option)</td><td>Golden vectors bit-exact for stride 1; test pad=valid and pad=same; test k=3 and k=5; cross-check 5 random shapes against the simulator</td></tr>
+    <tr><td>7</td><td>Dispatcher: walks model.json, allocates buffers, calls kernels in order</td><td>Full-model golden vector: bit-exact end-to-end on host</td></tr>
+    <tr class="alt"><td>8</td><td>Benchmark harness (N inferences, cycles, ms, RAM, flash)</td><td>Run naive vs optimized on host first (both must be bit-exact), then on ESP32</td></tr>
+  </table>
+
+  <h3>4.2 &mdash; Optimized kernels (same interface, same bit-exact rule)</h3>
+  <p>After the naive versions pass, add optimized variants selected by a build flag or dispatcher config: packed weights + 4&times;-unrolled GEMM; im2col-free conv1d with sliding-window accumulation. <b>Every optimized kernel must pass the exact same golden-vector test</b> &mdash; optimized but wrong is worth nothing.</p>
+
+  <div class="gate"><b>GATE 4 &mdash; end of Day 3:</b> all kernels bit-exact on host &middot; full-model inference bit-exact on host for both models &middot; firmware compiles for ESP32 &middot; full-model inference bit-exact on ESP32 &middot; naive vs optimized cycle counts exist for at least the MLP.</div>
+  <div class="fail"><b>If it fails:</b> use the per-layer vectors to find the <i>first layer</i> where C diverges from the simulator, and debug only that layer (print the int32 accumulator for one output element in both). Nine times out of ten it is rounding or memory layout &mdash; not the math.</div>
+</div>
+
+<!-- ============ PAGE 5: STAGE 5 ============ -->
+<div class="page">
+  <span class="step-badge">STAGE 5</span><span class="step-title">Day 4 &mdash; Benchmark, Results, Demo</span>
+
+  <h3>5.1 &mdash; Benchmark protocol (how to measure correctly)</h3>
+  <table>
+    <tr><th style="width:22%;">Metric</th><th>Method</th><th style="width:30%;">Validity check</th></tr>
+    <tr><td>Cycles &amp; latency</td><td>10 warm-up runs, then median of &ge; 100 timed runs; <code>esp_cpu_get_cycle_count()</code> around <code>model_infer()</code> only; report cycles AND ms (cycles / 240 MHz)</td><td>Disable WiFi/BT; pin task to one core; two consecutive medians within ~2%</td></tr>
+    <tr class="alt"><td>Peak RAM</td><td>Arena size (from model.json) + stack high-water mark; .bss/.data sizes from the .map file</td><td>0xAA guard band after the arena, verified intact after a run &mdash; proves no overflow</td></tr>
+    <tr><td>Flash</td><td>.bin/.elf size + .map sections (text + rodata = code + weights)</td><td>Weights visible in .map &asymp; model size from export</td></tr>
+    <tr class="alt"><td>Accuracy on target</td><td>Push test vectors over UART, run inference on ESP32, compare with simulator outputs</td><td>Bit-exact match &rarr; on-target accuracy = simulator accuracy automatically</td></tr>
+  </table>
+  <div class="tip"><b>Fairness rule:</b> naive and optimized must be built with identical compiler flags (<code>-O3</code>, set globally in the build config, not per file) and run on identical inputs. Report the environment: ESP32 @ 240 MHz, ESP-IDF version, flags.</div>
+
+  <h3>5.2 &mdash; Fill this results table (it is the deliverable)</h3>
+  <pre><code>Model: 1D-CNN   |   ESP32 @ 240 MHz   |   -O3   |   ESP-IDF v5.x
++--------------------+------------+------------+---------------+
+| Metric             |  Naive C   |  Optimized |  Improvement  |
++--------------------+------------+------------+---------------+
+| Cycles / inference |            |            |               |
+| Latency (ms)       |            |            |               |
+| Peak RAM (KB)      |            |            |               |
+| Flash (KB)         |            |            |               |
+| Accuracy INT8 (%)  |            |            |               |
+| Accuracy FP32 (%)  |  reference value from training (both cols) |
++--------------------+------------+------------+---------------+
+(repeat for the MLP)</code></pre>
+
+  <h3>5.3 &mdash; Final verification checklist</h3>
+  <table>
+    <tr><th style="width:26%;">Check</th><th>Pass condition</th></tr>
+    <tr><td>Bit-exactness</td><td>All per-layer and full-model golden vectors pass on host AND on ESP32</td></tr>
+    <tr class="alt"><td>Reproducibility</td><td>One command rebuilds everything from a clean checkout: export &rarr; build &rarr; test &rarr; benchmark</td></tr>
+    <tr><td>No dynamic memory</td><td><code>grep -rn "malloc\|calloc\|free(" firmware/src</code> returns zero hits</td></tr>
+    <tr class="alt"><td>Determinism</td><td>Two benchmark runs produce identical outputs (bit-exact runtime &rArr; deterministic)</td></tr>
+    <tr><td>Documentation</td><td>README: architecture diagram, how to run the demo, how to read the results</td></tr>
+  </table>
+
+  <div class="gate"><b>GATE 5 &mdash; end of Day 4:</b> results table filled &middot; demo runs with one command &middot; v0.1 tagged on GitHub. <b>You now have a working TinyML framework.</b></div>
+</div>
+
+<!-- ============ PAGE 6: DEBUG MAP + SUMMARY ============ -->
+<div class="page last">
+  <h2>Debugging map &mdash; where to look when a test fails</h2>
+  <table>
+    <tr><th style="width:30%;">Symptom</th><th style="width:35%;">Check first</th><th>Then</th></tr>
+    <tr><td>C output &ne; golden vector (one layer)</td><td>Rounding mode (half-to-even vs half-away), layout (row-major vs column-major), zero-point handling</td><td>Print the int32 accumulator for one output element in simulator and C; diff at the first differing index</td></tr>
+    <tr class="alt"><td>End-to-end mismatch but all layers pass alone</td><td>Dispatcher buffer aliasing (a kernel overwriting its own input), wrong buffer index</td><td>Run the dispatcher with each layer writing to distinct buffers; re-enable overlap only after it passes</td></tr>
+    <tr><td>ESP32 result &ne; host C result</td><td>Plain <code>char</code> signedness (use <code>int8_t</code>/explicit types everywhere), alignment, optimization-dependent undefined behavior</td><td>Build ESP32 at -O0 vs -O2; if results change, there is UB &mdash; run host build with sanitizers (<code>-fsanitize=address,undefined</code>)</td></tr>
+    <tr class="alt"><td>Cycle counts unstable</td><td>WiFi/BT active, other FreeRTOS tasks, cache effects</td><td>Disable radio, pin task to one core, warm-up runs, report the median</td></tr>
+    <tr><td>Quantized accuracy drop &gt; 2%</td><td>Zero-point arithmetic, calibration set too small or unrepresentative</td><td>Percentile clipping; plot per-layer output distributions FP32 vs INT8 side by side</td></tr>
+    <tr class="alt"><td>ESP32 hard fault during inference</td><td>Arena overflow (a buffer larger than declared), main-task stack too small</td><td>0xAA guard band after the arena; increase main task stack in <code>idf.py menuconfig</code></td></tr>
+  </table>
+
+  <h2>After Day 4 &mdash; backlog (deliberately deferred)</h2>
+  <table>
+    <tr><th style="width:34%;">Item</th><th style="width:22%;">Estimate</th><th>Why it is safe to defer</th></tr>
+    <tr><td>Port to NXP MCXN236 (Cortex-M33) + DWT cycle benchmarking</td><td>~1&ndash;2 person-weeks</td><td>All target-specific code is isolated in the platform HAL + intrinsics; kernels and runtime are portable C</td></tr>
+    <tr class="alt"><td>CMSIS-NN baseline integration</td><td>~3&ndash;4 days</td><td>The same golden vectors from this sprint verify the CMSIS-NN kernels</td></tr>
+    <tr><td>Buffer-lifetime overlap planner (peak-RAM reduction)</td><td>~2&ndash;3 days</td><td>Planner only emits a new arena layout into model.json; the runtime already reads the arena size from there</td></tr>
+    <tr class="alt"><td>Case-study application (live sensor / keyword spotting)</td><td>~1 week</td><td>v0.1 already runs the models; the app adds a new input path (mic/sensor) feeding the same runtime</td></tr>
+  </table>
+
+  <h2>One-page summary &mdash; the whole process at a glance</h2>
+  <div class="pipeline">DAY 1  &#9656; Stage 0: toolchains + repo + 3 contracts (requantize spec, model.json schema, golden-vector format)
+        &#9656; Stage 1: train MLP + 1D-CNN (FP32)                         [GATE 1: models trained + saved]
+
+DAY 2  &#9656; Stage 2: INT8 quantize + NumPy bit-exact simulator          [GATE 2: quantized acc within ~2%]
+        &#9656; Stage 3: export model.json + model_data.c/.h + vectors     [GATE 3: round-trip test passes]
+        &#9656; Stage 4a: host kernels bit-exact vs vectors                [GATE 4a: full model bit-exact on host]
+
+DAY 3  &#9656; Stage 4b: ESP32 build + bit-exact on target                [GATE 4b: bit-exact on ESP32]
+        &#9656; Stage 4c: optimized kernels (packed GEMM, conv1d), bit-exact
+        &#9656; Stage 5a: benchmark harness                                 [GATE 4: cycle counts for both models]
+
+DAY 4  &#9656; Stage 5b: benchmark table + README + demo script            [GATE 5: one-command demo, tag v0.1]</div>
+  <p class="small"><b>Golden rule:</b> never debug two unknowns at once. Every stage has a reference (what correctness looks like) and a gate (when you may move on). The reference proves the stage is correct; the gate proves the pipeline is ready for the next stage.</p>
+</div>
+
+</body>
+</html>

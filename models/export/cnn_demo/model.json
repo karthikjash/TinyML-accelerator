@@ -1,0 +1,171 @@
+{
+  "format_version": "0.1",
+  "model_name": "cnn_demo",
+  "quant_spec": "CONTRACT_1 v0.1",
+  "input": {
+    "shape": [
+      1,
+      128,
+      3
+    ],
+    "scale": 0.021339727850521312,
+    "zero_point": 4
+  },
+  "output": {
+    "shape": [
+      1,
+      4
+    ],
+    "scale": 0.00392156862745098,
+    "zero_point": -128
+  },
+  "layers": [
+    {
+      "name": "conv1",
+      "type": "conv1d",
+      "weight": "conv1_w",
+      "bias": "conv1_b",
+      "weight_shape": [
+        3,
+        16,
+        5
+      ],
+      "kernel": 5,
+      "stride": 1,
+      "pad": "same",
+      "in_shape": [
+        1,
+        128,
+        3
+      ],
+      "out_shape": [
+        1,
+        128,
+        16
+      ],
+      "scale_in": 0.021339727850521312,
+      "scale_w": 0.0021552492783764214,
+      "scale_out": 0.01133360886106304,
+      "zp_in": 4,
+      "zp_out": -128,
+      "activation": "relu"
+    },
+    {
+      "name": "pool1",
+      "type": "maxpool1d",
+      "kernel": 2,
+      "stride": 2,
+      "in_shape": [
+        1,
+        128,
+        16
+      ],
+      "out_shape": [
+        1,
+        64,
+        16
+      ]
+    },
+    {
+      "name": "conv2",
+      "type": "conv1d",
+      "weight": "conv2_w",
+      "bias": "conv2_b",
+      "weight_shape": [
+        16,
+        32,
+        3
+      ],
+      "kernel": 3,
+      "stride": 1,
+      "pad": "same",
+      "in_shape": [
+        1,
+        64,
+        16
+      ],
+      "out_shape": [
+        1,
+        64,
+        32
+      ],
+      "scale_in": 0.01133360886106304,
+      "scale_w": 0.0012744977248935248,
+      "scale_out": 0.013179558041800774,
+      "zp_in": -128,
+      "zp_out": -128,
+      "activation": "relu"
+    },
+    {
+      "name": "pool2",
+      "type": "maxpool1d",
+      "kernel": 2,
+      "stride": 2,
+      "in_shape": [
+        1,
+        64,
+        32
+      ],
+      "out_shape": [
+        1,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "flat",
+      "type": "flatten",
+      "in_shape": [
+        1,
+        32,
+        32
+      ],
+      "out_shape": [
+        1,
+        1024
+      ]
+    },
+    {
+      "name": "fc",
+      "type": "fc",
+      "weight": "fc_w",
+      "bias": "fc_b",
+      "weight_shape": [
+        1024,
+        4
+      ],
+      "in_shape": [
+        1,
+        1024
+      ],
+      "out_shape": [
+        1,
+        4
+      ],
+      "scale_in": 0.013179558041800774,
+      "scale_w": 0.0003880614957471532,
+      "scale_out": 0.016578326364115808,
+      "zp_in": -128,
+      "zp_out": 81,
+      "activation": "none"
+    },
+    {
+      "name": "sm",
+      "type": "softmax",
+      "in_shape": [
+        1,
+        4
+      ],
+      "out_shape": [
+        1,
+        4
+      ],
+      "scale_in": 0.016578326364115808,
+      "zp_in": 81,
+      "scale_out": 0.00392156862745098,
+      "zp_out": -128,
+      "lut_ref": "sm_lut"
+    }
+  ],
+  "arena_size_bytes": 3072
+}

@@ -1,0 +1,32 @@
+{
+ "format_version": "0.1",
+ "model_name": "cnn_demo",
+ "layer_index": 7,
+ "layer_name": "sm",
+ "layer_type": "softmax",
+ "input": {
+  "data": [
+   54,
+   29,
+   112,
+   90
+  ],
+  "shape": [
+   1,
+   4
+  ]
+ },
+ "output": {
+  "data": [
+   -86,
+   -100,
+   -19,
+   -52
+  ],
+  "shape": [
+   1,
+   4
+  ]
+ },
+ "tolerance": 0
+}

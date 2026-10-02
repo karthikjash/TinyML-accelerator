@@ -1,0 +1,32 @@
+{
+ "format_version": "0.1",
+ "model_name": "mlp_demo",
+ "layer_index": 4,
+ "layer_name": "sm",
+ "layer_type": "softmax",
+ "input": {
+  "data": [
+   -43,
+   -46,
+   -18,
+   -33
+  ],
+  "shape": [
+   1,
+   4
+  ]
+ },
+ "output": {
+  "data": [
+   -89,
+   -94,
+   -7,
+   -67
+  ],
+  "shape": [
+   1,
+   4
+  ]
+ },
+ "tolerance": 0
+}
