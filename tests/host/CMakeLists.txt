@@ -1,22 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 project(tinyml_host_tests C)
-
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-# Global optimization flags — the benchmark fairness rule requires identical
-# flags for naive and optimized code paths, set here, not per-file.
 set(CMAKE_C_FLAGS "-Wall -Wextra -O3 -fsigned-char")
-
-# Host backend of the platform HAL (firmware/src/platform/platform.h).
 add_compile_definitions(PLATFORM_HOST)
-
-# firmware headers live at repo root; this file is configured with -S tests/host,
-# so resolve the root relative to this CMakeLists.
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/src)
-
-# Day 1: a hello test proving the host toolchain (GATE 0 requirement).
+enable_testing()
 add_executable(hello_test hello_test.c)
 add_test(NAME hello COMMAND hello_test)
-
-enable_testing()
+add_executable(kernel_test kernel_test.c ../../firmware/src/kernels/kernels.c ../../firmware/src/memory/arena.c)
+add_executable(full_model_test full_model_test.c ../../firmware/src/kernels/kernels.c ../../firmware/src/runtime/runtime.c ../../firmware/src/runtime/models.c ../../models/export/mlp_demo/model_data.c ../../models/export/mlp_demo/golden/vectors.c ../../models/export/cnn_demo/model_data.c ../../models/export/cnn_demo/golden/vectors.c)
+set_source_files_properties(../../models/export/mlp_demo/model_data.c PROPERTIES COMPILE_DEFINITIONS "sm_lut=mlp_sm_lut")
+set_source_files_properties(../../models/export/cnn_demo/model_data.c PROPERTIES COMPILE_DEFINITIONS "sm_lut=cnn_sm_lut")
+if(NOT MSVC)
+  target_link_libraries(kernel_test m)
+  target_link_libraries(full_model_test m)
+endif()
+add_test(NAME kernels COMMAND kernel_test)
+add_test(NAME full_model COMMAND full_model_test)

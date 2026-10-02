@@ -14,10 +14,12 @@
 
 #if defined(PLATFORM_ESP32)
   #include "platform_esp32.h"
+#elif defined(PLATFORM_MCXN236)
+  #include "platform_mcxn236.h"
 #elif defined(PLATFORM_HOST)
   #include "platform_host.h"
 #else
-  #error "Define PLATFORM_HOST or PLATFORM_ESP32"
+  #error "Define PLATFORM_HOST, PLATFORM_ESP32 or PLATFORM_MCXN236"
 #endif
 
 #endif /* TINYML_PLATFORM_H */

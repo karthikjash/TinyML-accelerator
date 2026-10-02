@@ -107,7 +107,19 @@ tinyml-mcxn236/
 ### Strictly Out of Scope
 - MCU-side model training, dynamic graph compilation, or general-purpose ONNX/TFLite engines.
 - Large-scale vision/LLM architectures, ASIC/FPGA acceleration.
-- Dynamic memory allocation (`malloc`) during inference.
+- Dynamic memory allocation (`malloc`) during inference. 
+
+## Host correctness tests
+
+On Windows with MinGW GCC and CMake installed, configure and run the C tests with:
+
+```powershell
+cmake -S tests/host -B build/host-mingw -G "MinGW Makefiles" -DCMAKE_C_COMPILER=C:/MinGW/bin/gcc.exe
+cmake --build build/host-mingw --parallel
+ctest --test-dir build/host-mingw --output-on-failure
+```
+
+The current full-model test compares the MLP and CNN C runtime outputs against the checked-in INT8 golden vectors. The FRDM-MCXN236 application source is in `firmware/mcxn236/main.c`; its MCUXpresso SDK project and flash workflow are not yet configured. See [DAY3_REPORT.md](DAY3_REPORT.md) for verified status.
 
 
 ## Toolchain & Practical Validation (Added from Proposal)
