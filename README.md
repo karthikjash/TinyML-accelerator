@@ -1,147 +1,82 @@
-# Configurable TinyML Acceleration Framework for NXP MCXN236
+# TinyML Inference Framework for NXP MCXN236
 
-A configurable, model-aware TinyML execution runtime targeting efficient INT8 neural-network inference on the **NXP FRDM-MCXN236** (Arm Cortex-M33).
+A model-driven, integer-only inference runtime for compact neural networks on the **NXP FRDM-MCXN236** (Arm Cortex-M33). This repository includes a reproducible Python model pipeline, exported INT8 MLP and 1D-CNN models, a portable C inference runtime, host correctness tests, and an MCXN236 verification application.
 
----
+## Project at a glance
 
-## 1. Project Overview & Key Objectives
+- Trains compact MLP and 1D-CNN classifiers on a deterministic synthetic sensor-signal dataset.
+- Applies post-training INT8 quantization and exports model parameters and metadata for the C runtime.
+- Runs inference with integer tensors, a statically supplied arena, and no heap allocation in the inference path.
+- Checks C runtime outputs against checked-in golden vectors and compares optimized and reference execution modes.
 
-Microcontrollers face strict bounds on CPU, RAM, Flash, memory bandwidth, and power. This framework replaces conventional hard-coded implementations with a model-aware execution layer that configures optimized kernels based on offline model structure analysis.
+The checked-in training results report 100% test accuracy for both FP32 demo models. Quantized evaluation reports 100% accuracy for both models, with no measured drop on the project's held-out split. These figures describe the synthetic dataset and do not establish real-world sensor performance.
 
-### Primary Objectives
-1. **Target:** NXP FRDM-MCXN236 (Arm Cortex-M33).
-2. **Quantization:** INT8 / fixed-point inference (offline quantization pipeline).
-3. **Core Kernels:** MAC, GEMM/FC, 1D Convolution, Activations.
-4. **Supported Model Classes:** Multilayer Perceptron (MLP) & 1D Convolutional Neural Network (1D-CNN).
-5. **Memory Strategy:** Dynamic-allocation-free static buffering & tensor reuse.
-6. **Benchmarking:** Automated baseline vs. optimized comparison across Cycles, Latency, Peak RAM, Flash, Model Size, Accuracy, and Energy (optional).
-
----
-
-## 2. Framework Workflow & Execution Pipeline
+## Architecture
 
 ```text
-+-------------------------------------------------------------------+
-|                           OFFLINE SIDE                            |
-| Model Training -> INT8 Quantization -> Model Analysis & Config    |
-+---------------------------------+---------------------------------+
-                                  | (Generated Code + Config Headers)
-                                  v
-+-------------------------------------------------------------------+
-|                           MCXN236 SIDE                            |
-| Model Interface -> Buffer Manager & Dispatcher -> Optimized Kernels|
-|                       -> Inference -> Benchmarking                |
-+-------------------------------------------------------------------+
+Python training → INT8 quantization → model export (C arrays + JSON metadata)
+                                              ↓
+Host tests ← C runtime ← model dispatcher + kernels + caller-provided arena
+                                              ↓
+                              MCXN236 verification application
 ```
 
-### Core Architecture Layers
-- **Model Analyzer (Offline):** Extracts layer shapes, channels, quantization scales, tensor lifespans, and selects required kernels.
-- **Kernel Configuration System:** Pre-compiles execution paths to eliminate runtime setup overhead (*Configure offline, execute online*).
-- **TinyML Runtime (Embedded):** Lightweight C/C++ engine handling static tensor buffers and zero-copy kernel invocation via a thin dispatcher.
-- **CMSIS-NN Baseline:** Utilizes CMSIS-NN/reference kernels as performance baselines.
+The runtime and model definitions live under `firmware/src/`. Host and MCXN236 platform adapters use the same runtime and kernel code. The board application runs optimized and reference inference against golden input/output vectors and reports cycle and timing measurements through the platform console.
 
----
+## Models and execution
 
-## 3. Supported Model Architectures
+| Model | Input | Main operations | Output |
+| --- | --- | --- | --- |
+| `mlp_demo` | 384 INT8 values | Fully connected layers, ReLU, softmax | 4 classes |
+| `cnn_demo` | 128 × 3 INT8 sequence | 1D convolution, max pooling, fully connected, softmax | 4 classes |
 
-| Model Class | Computational Operations | Target Quantization & Types |
-| :--- | :--- | :--- |
-| **MLP** | $y = W \cdot x + b$ | Weights/Activations: **INT8**, Bias/Accumulator: **32-bit Integer** |
-| **1D-CNN** | $y[t] = \sum x[t+k] \cdot w[k] + b$ | Weights/Activations: **INT8**, Sliding-window buffer reuse |
+Weights and activations use INT8 values; biases and accumulators use 32-bit integers. Quantization parameters and layer shapes are exported with each model. Intermediate storage is provided by the caller through a fixed-size arena; inference does not allocate memory dynamically.
 
----
-
-## 4. Quantization & Memory Model
-
-- **Data Flow:** Float32 Model $\rightarrow$ INT8 Calibration/Quantization $\rightarrow$ Header Export (`model_data.c/.h`).
-- **Memory Allocation:** Zero dynamic memory allocation (`malloc`) during inference. Static pre-allocated buffer layout with lifespan-based overlapping intermediate storage.
+## Repository structure
 
 ```text
-+-------------------------------------------------------+
-| Input Buffer | Intermediate Buffer 1 | Buffer 2 | Output|
-+-------------------------------------------------------+
+firmware/
+  src/                 Portable runtime, kernels, arena, and platform interfaces
+  mcxn236/             FRDM-MCXN236 application and SDK project definition
+models/
+  fp32/                Trained models, dataset split, and normalization artifacts
+  quant/               Quantized graphs and tensor archives
+  export/              Generated C model data, metadata, and golden vectors
+tools/                 Training, quantization, export, simulation, and debug scripts
+tests/host/            C host tests for kernels and full-model inference
+docs/                  Quantization, model metadata, and golden-vector contracts
+scripts/check_all.sh   Host and model-pipeline checks
 ```
 
----
+## Build and run host tests
 
-## 5. Benchmarking & Correctness Protocol
+Requirements: CMake 3.16 or newer and a C compiler. From the repository root:
 
-### Validation Strategy
-1. **Correctness First:** Unit/layer output verified against reference floating-point/INT8 models within bounds before benchmarking.
-2. **Fairness Guarantee:** Baseline and optimized implementations execute identical model graphs, precision, inputs, and compiler flags (`-O3`).
-
-### Core Evaluation Metrics
-- **Inference Latency & CPU Cycles:** Measured using MCU hardware cycle counter (DWT/SysTick).
-- **Memory Footprint:** Peak RAM and total Flash usage.
-- **Model Performance:** Quantized accuracy vs. FP32 baseline.
-- **Speedup Ratio:** $\text{Speedup} = \frac{\text{Baseline Cycles}}{\text{Optimized Cycles}}$
-
----
-
-## 6. Repository Layout
-
-```text
-tinyml-mcxn236/
-├── firmware/
-│   ├── src/
-│   │   ├── main.c
-│   │   ├── runtime/     # Dispatcher & runtime engine
-│   │   ├── kernels/     # MAC, GEMM, FC, Conv1D
-│   │   ├── memory/      # Buffer manager
-│   │   └── benchmark/   # Latency & cycle measurements
-├── models/              # MLP & 1D-CNN trained weights/metadata
-├── tools/               # Offline Quantization, Analyzer & Header Generators
-├── tests/               # Unit, Layer & Integration tests
-└── third_party/cmsis/   # CMSIS-NN Baseline reference
+```sh
+cmake -S tests/host -B build/host
+cmake --build build/host --parallel
+ctest --test-dir build/host --output-on-failure
 ```
 
----
+The host suite covers a basic toolchain check, kernel behavior, and full-model comparisons against the checked-in golden vectors.
 
-## 7. Development Rules & Boundaries
+## Reproduce the model pipeline
 
-### In Scope
-- INT8 MLP and 1D-CNN inference on Arm Cortex-M33 (FRDM-MCXN236).
-- Custom/CMSIS-NN optimized kernels (MAC, GEMM, Conv1D).
-- Offline-configured static memory layout and execution paths.
+Python dependencies are listed in `requirements.txt` (PyTorch and NumPy). With those installed in your environment, run:
 
-### Strictly Out of Scope
-- MCU-side model training, dynamic graph compilation, or general-purpose ONNX/TFLite engines.
-- Large-scale vision/LLM architectures, ASIC/FPGA acceleration.
-- Dynamic memory allocation (`malloc`) during inference. 
-
-## Host correctness tests
-
-On Windows with MinGW GCC and CMake installed, configure and run the C tests with:
-
-```powershell
-cmake -S tests/host -B build/host-mingw -G "MinGW Makefiles" -DCMAKE_C_COMPILER=C:/MinGW/bin/gcc.exe
-cmake --build build/host-mingw --parallel
-ctest --test-dir build/host-mingw --output-on-failure
+```sh
+python tools/train.py
+python tools/quantize.py
+python tools/simulate.py
+python tools/export_model.py
 ```
 
-The current full-model test compares the MLP and CNN C runtime outputs against the checked-in INT8 golden vectors. The FRDM-MCXN236 application source is in `firmware/mcxn236/main.c`; its MCUXpresso SDK project and flash workflow are not yet configured. See [DAY3_REPORT.md](DAY3_REPORT.md) for verified status.
+The scripts write generated artifacts beneath `models/`. The simulator evaluates quantized inference against the saved data split; the exporter produces the C model arrays and metadata consumed by firmware. See [`tools/README.md`](tools/README.md) and the contracts in [`docs/`](docs/) for implementation details.
 
+## Build for FRDM-MCXN236
 
-## Toolchain & Practical Validation (Added from Proposal)
+The target application is in `firmware/mcxn236/`. It uses the MCUXpresso SDK board support and requires an installed SDK checkout. Configure with the path to the SDK's `mcuxsdk` directory and its board project root, then build using the SDK CMake workflow. The project definition expects the SDK board port at `examples/_boards/frdmmcxn236/demo_apps/hello_world`. The application verifies both exported models against golden vectors and prints cycle and timing measurements over the configured console.
 
-### Toolchain & Development Environment
-- **PC-Side Training & Conversion:** Python-based ML tools (TensorFlow/PyTorch) supporting training and **Transfer Learning**.
-- **Target IDE & SDK:** NXP **MCUXpresso** environment using Cortex-M33 SIMD/integer processing capabilities.
+## Scope and limitations
 
-### Application Case Study
-- Beyond synthetic benchmarks, the framework will be validated using an **embedded sensor-based application/case study** to demonstrate real-time performance in a practical operating scenario.
-
-
-## Expected Benchmarking Results
-
-**Target Hardware:** NXP FRDM-MCXN236 (Arm Cortex-M33 @ 150 MHz)  
-**Optimization Flags:** `-O3 -mcpu=cortex-m33`  
-**Model Architecture:** 1D-CNN (Keyword Spotting / Sensor Signal)
-
-| Metric | Naive C Reference | CMSIS-NN Baseline | Your Framework | Improvement vs. CMSIS-NN |
-| :--- | :---: | :---: | :---: | :---: |
-| **Inference Cycles** | X,XXX,XXX | YYY,YYY | ZZZ,ZZZ | +XX.X% Speedup |
-| **Latency (ms)** | XX.X ms | Y.YY ms | Z.ZZ ms | -XX.X% Latency |
-| **Peak RAM (KB)** | XX.X KB | YY.Y KB | ZZ.Z KB | -XX.X% RAM |
-| **Flash Footprint (KB)** | XX.X KB | YY.Y KB | ZZ.Z KB | -XX.X% Code Size |
-| **Top-1 Accuracy (%)** | 94.2% | 94.1% | 94.1% | 0.0% Loss |
+This project demonstrates integer inference and validation using generated sensor-like data. The checked-in accuracy results apply only to that dataset. The firmware project provides a board verification application, but performance depends on building and running it on the target hardware. No measured speedup, RAM/Flash reduction, energy use, or field-data accuracy is claimed here. The runtime supports the included model operators and is not a general-purpose ONNX or TensorFlow Lite engine.
